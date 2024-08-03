@@ -152,7 +152,16 @@ def main():
                     else:
                         female_count += 1
 
-            st.image(Image.fromarray(image_cv), caption='Image with Annotations.', use_column_width=True)
+            if car_count == 1:
+                # Only print car color if exactly one car is detected
+                single_car_bbox = detections[0]['bbox']
+                car_image = image_cv[single_car_bbox[1]:single_car_bbox[1] + single_car_bbox[3],
+                            single_car_bbox[0]:single_car_bbox[0] + single_car_bbox[2]]
+                car_color = car_color_detect(Image.fromarray(cv2.cvtColor(car_image, cv2.COLOR_BGR2RGB)))
+                st.write(f"Car color: {car_color}")
+            else:
+                # Draw annotations and print details for multiple cars or other cases
+                st.image(Image.fromarray(image_cv), caption='Image with Annotations.', use_column_width=True)
             st.write(f"Number of cars detected: {car_count}")
             st.write(f"Number of males detected: {male_count}")
             st.write(f"Number of females detected: {female_count}")
