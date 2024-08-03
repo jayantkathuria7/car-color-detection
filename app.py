@@ -86,37 +86,7 @@ def draw_annotations(frame, detections, color_model, car_class_id):
         car_image = frame[y:y + h, x:x + w]
         color = car_color_detect(Image.fromarray(cv2.cvtColor(car_image, cv2.COLOR_BGR2RGB)))
         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
-        # Define the text and font settings
-        text = color
-        font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-        font_scale = 0.5
-        font_thickness = 1
-
-        # Get the text size
-        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
-
-        # Define the position for the text
-        text_x = x + 5
-        text_y = y + text_height + 5  # Positioned inside the rectangle, bottom of the text
-
-        # Calculate the rectangle coordinates based on text size
-        rectangle_x1 = text_x - 3  # Slight padding on the left
-        rectangle_y1 = text_y - text_height - 8  # Slight padding on top
-        rectangle_x2 = text_x + text_width + 3  # Slight padding on the right
-        rectangle_y2 = text_y + 5  # Slight padding at the bottom
-
-        # Ensure the rectangle is within the image boundaries
-        rectangle_x1 = max(0, rectangle_x1)
-        rectangle_y1 = max(0, rectangle_y1)
-        rectangle_x2 = min(frame.shape[1], rectangle_x2)
-        rectangle_y2 = min(frame.shape[0], rectangle_y2)
-
-        # Draw the black rectangle behind the text
-        cv2.rectangle(frame, (rectangle_x1, rectangle_y1), (rectangle_x2, rectangle_y2), (0, 0, 0), cv2.FILLED)
-
-        # Draw the text on top of the black rectangle
-        cv2.putText(frame, text, (text_x, text_y), font, font_scale, (0, 255, 0), font_thickness)
+        cv2.putText(frame, color, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 1)
         # Count car
         if detection['classid'] == car_class_id:
             car_count += 1
