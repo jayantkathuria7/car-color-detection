@@ -41,7 +41,6 @@ def preprocess_image(image, size):
 
 def car_color_detect(img, model):
     img = preprocess_image(img, CAR_COLOR_IMAGE_SIZE)
-    st.image(img)
     pred = model.predict(img)
     color_index = int(np.argmax(pred))
     colors = {0: 'beige', 1: 'black', 2: 'blue', 3: 'brown', 4: 'green',
@@ -73,7 +72,7 @@ def draw_annotations(frame, detections, color_model, car_class_id):
         color = car_color_detect(Image.fromarray(car_image), color_model)
 
         # Draw rectangle around detected object
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
 
         # Define label text and calculate size
         label = color
@@ -95,7 +94,7 @@ def draw_annotations(frame, detections, color_model, car_class_id):
         # Draw the black background rectangle
         cv2.rectangle(frame, (background_x1, background_y1), (background_x2, background_y2), (0, 0, 0), -1)
         # Put the label text inside the background rectangle
-        cv2.putText(frame, label, (background_x1 + 2, background_y1 + text_height + 2), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        cv2.putText(frame, label, (background_x1 + 4, background_y1 + text_height + 4), cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 2)
 
         if detection['classid'] == car_class_id:
             car_count += 1
@@ -155,7 +154,7 @@ def main():
 
             faces = detect_faces(image_cv)
             male_count, female_count = 0, 0
-            if faces:
+            if len(faces)>1:
                 for (x, y, w, h) in faces:
                     face_img = image_cv[y:y + h, x:x + w]
                     age, gender = detect_age_gender(Image.fromarray(face_img), age_gender_model)
@@ -224,7 +223,7 @@ def main():
 
                 faces = detect_faces(frame_rgb)
                 male_count, female_count = 0, 0
-                if faces:
+                if len(faces)>1:
                     for (x, y, w, h) in faces:
                         face_image = frame_rgb[y:y + h, x:x + w]
                         age, gender = detect_age_gender(Image.fromarray(face_image), age_gender_model)
