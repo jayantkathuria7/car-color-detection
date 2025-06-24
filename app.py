@@ -15,8 +15,6 @@ AGE_GENDER_IMAGE_SIZE = (48, 48)
 def load_model(model_path):
     return tf.keras.models.load_model(model_path)
 
-car_color_model = load_model('Car_Color_Detection.keras')
-age_gender_model = load_model('Age_Sex_Detection.keras')
 # Load object detection network
 @st.cache_resource
 def load_network(modelFile, configFile):
@@ -41,9 +39,9 @@ def preprocess_image(image, size):
     image = image / 255.0  # Normalize
     return image
 
-def car_color_detect(img):
+def car_color_detect(img, model):
     img = preprocess_image(img, CAR_COLOR_IMAGE_SIZE)
-    pred = car_color_model.predict(img)
+    pred = model.predict(img)
     color_index = int(np.argmax(pred))
     colors = {0: 'beige', 1: 'black', 2: 'blue', 3: 'brown', 4: 'green',
               5: 'grey', 6: 'orange', 7: 'pink', 8: 'purple', 9: 'red',
@@ -51,12 +49,11 @@ def car_color_detect(img):
     color_name = colors.get(color_index, 'unknown')
     return 'blue' if color_name == 'red' else ('red' if color_name == 'blue' else color_name)
 
-def detect_age_gender(face_img):
+def detect_age_gender(face_img, model):
     face_img = preprocess_image(face_img, AGE_GENDER_IMAGE_SIZE)
-    pred = age_gender_model.predict(face_img)
-    print(pred)
-    age = int(pred[1][0])
-    gender = 'Male' if pred[0][0] > 0.5 else 'Female'
+    pred = model.predict(face_img)
+    age = int(pred[0][0])
+    gender = 'Male' if pred[0][1] > 0.5 else 'Female'
     return age, gender
 
 def detect_faces(frame):
@@ -65,14 +62,14 @@ def detect_faces(frame):
     return face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE)
 
 
-def draw_annotations(frame, detections, car_class_id):
+def draw_annotations(frame, detections, color_model, car_class_id):
     car_count = 0
     other_vehicle_count = 0
 
     for detection in detections:
         x, y, w, h = detection['bbox']
         car_image = frame[y:y + h, x:x + w]
-        color = car_color_detect(Image.fromarray(car_image))
+        color = car_color_detect(Image.fromarray(car_image), color_model)
 
         # Draw rectangle around detected object
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
@@ -122,40 +119,22 @@ def display_image(image, title='Image'):
 
 def main():
     st.title("Traffic Analysis")
-    with st.expander("ℹ️ Custom Logic Details (Click to Expand)"):
-        st.markdown("""
-        ### 🎯 Custom Predictions
-        This app uses computer vision to detect and analyze traffic near a signal. The following customizations are applied:
-
-        - 🔄 **Color Swap**:
-            - Red cars are shown as **blue**
-            - Blue cars are shown as **red**
-        
-        - 🚗 **Vehicle Detection**:
-            - Total number of **cars** are counted
-            - All **non-car vehicles** are separately counted (e.g., bikes, buses)
-        
-        - 🚶 **People Detection**:
-            - When people are present, the app predicts the **number of males and females**
-
-        These transformations are **intentional** and serve as an experimental customization in the traffic model.
-
-        ---
-        """)
     st.write("Upload an image or video to analyze traffic. The app will predict car colors, count cars, and detect people.")
 
     upload_option = st.radio("Select Upload Type:", ("Image", "Video"))
-    
+
     # Load models and network
     labels = load_labels('coco_class_labels.txt')
     car_class_id = labels.index('car')
     net = load_network('models/ssd_mobilenet_v2_coco_2018_03_29/frozen_inference_graph.pb', 'models/ssd_mobilenet_v2_coco_2018_03_29.pbtxt')
+    car_color_model = load_model('Car_Color_Detection.keras')
+    age_gender_model = load_model('Age_Sex_Detection.keras')
 
     if upload_option == "Image":
         uploaded_image = st.file_uploader("Choose an image...", type="jpg")
         if uploaded_image:
             image = Image.open(uploaded_image)
-            st.image(image, caption='Uploaded Image.', use_container_width=True)
+            st.image(image, caption='Uploaded Image.', use_column_width=True)
 
             image_cv = np.array(image)
             objects = detect_objects(net, image_cv)
@@ -171,17 +150,17 @@ def main():
                     if w >= 80 and h >= 80:
                         detections.append({'bbox': (x, y, w, h), 'classid': classid})
 
-            car_count, other_vehicle_count = draw_annotations(image_cv, detections, car_class_id)
+            car_count, other_vehicle_count = draw_annotations(image_cv, detections, car_color_model, car_class_id)
 
             faces = detect_faces(image_cv)
             male_count, female_count = 0, 0
             if len(faces)>1:
                 for (x, y, w, h) in faces:
                     face_img = image_cv[y:y + h, x:x + w]
-                    age, gender = detect_age_gender(Image.fromarray(face_img))
+                    age, gender = detect_age_gender(Image.fromarray(face_img), age_gender_model)
                     cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    cv2.putText(image_cv, f"Age: {age}", (x, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
-                    cv2.putText(image_cv, f"Gender: {gender}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+                    cv2.putText(image_cv, f"Age: {age}", (x, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                    cv2.putText(image_cv, f"Gender: {gender}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                     if gender == 'Male':
                         male_count += 1
                     else:
@@ -190,10 +169,10 @@ def main():
             if car_count == 1:
                 single_car_bbox = detections[0]['bbox']
                 car_image = image_cv[single_car_bbox[1]:single_car_bbox[1] + single_car_bbox[3], single_car_bbox[0]:single_car_bbox[0] + single_car_bbox[2]]
-                car_color = car_color_detect(Image.fromarray(car_image))
+                car_color = car_color_detect(Image.fromarray(car_image), car_color_model)
                 st.write(f"Car color: {car_color}")
             else:
-                st.image(Image.fromarray(image_cv), caption='Image with Annotations.', use_container_width=True)
+                st.image(Image.fromarray(image_cv), caption='Image with Annotations.', use_column_width=True)
 
             st.write(f"Number of cars detected: {car_count}")
             st.write(f"Number of males detected: {male_count}")
@@ -240,17 +219,17 @@ def main():
                         if w >= 80 and h >= 80:
                             detections.append({'bbox': (x, y, w, h), 'classid': classid})
 
-                car_count, other_vehicle_count = draw_annotations(frame_rgb, detections, car_class_id)
+                car_count, other_vehicle_count = draw_annotations(frame_rgb, detections, car_color_model, car_class_id)
 
                 faces = detect_faces(frame_rgb)
                 male_count, female_count = 0, 0
                 if len(faces)>1:
                     for (x, y, w, h) in faces:
                         face_image = frame_rgb[y:y + h, x:x + w]
-                        age, gender = detect_age_gender(Image.fromarray(face_image))
+                        age, gender = detect_age_gender(Image.fromarray(face_image), age_gender_model)
                         cv2.rectangle(frame_rgb, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                        cv2.putText(frame_rgb, f"Age: {age}", (x, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-                        cv2.putText(frame_rgb, f"Gender: {gender}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+                        cv2.putText(frame_rgb, f"Age: {age}", (x, y - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                        cv2.putText(frame_rgb, f"Gender: {gender}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                         if gender == 'Male':
                             male_count += 1
                         else:
@@ -263,7 +242,7 @@ def main():
                 cv2.putText(frame_rgb, f"Number of females: {female_count}", (10, height - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                 cv2.putText(frame_rgb, f"Number of other vehicles: {other_vehicle_count}", (10, height - 140), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                stframe.image(frame_rgb, channels="RGB", use_container_width=True)
+                stframe.image(frame_rgb, channels="RGB", use_column_width=True)
 
             cap.release()
 
