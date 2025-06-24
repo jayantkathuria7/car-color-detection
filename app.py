@@ -122,10 +122,30 @@ def display_image(image, title='Image'):
 
 def main():
     st.title("Traffic Analysis")
+    with st.expander("ℹ️ Custom Logic Details (Click to Expand)"):
+        st.markdown("""
+        ### 🎯 Custom Predictions
+        This app uses computer vision to detect and analyze traffic near a signal. The following customizations are applied:
+
+        - 🔄 **Color Swap**:
+            - Red cars are shown as **blue**
+            - Blue cars are shown as **red**
+        
+        - 🚗 **Vehicle Detection**:
+            - Total number of **cars** are counted
+            - All **non-car vehicles** are separately counted (e.g., bikes, buses)
+        
+        - 🚶 **People Detection**:
+            - When people are present, the app predicts the **number of males and females**
+
+        These transformations are **intentional** and serve as an experimental customization in the traffic model.
+
+        ---
+        """)
     st.write("Upload an image or video to analyze traffic. The app will predict car colors, count cars, and detect people.")
 
     upload_option = st.radio("Select Upload Type:", ("Image", "Video"))
-
+    
     # Load models and network
     labels = load_labels('coco_class_labels.txt')
     car_class_id = labels.index('car')
@@ -135,7 +155,7 @@ def main():
         uploaded_image = st.file_uploader("Choose an image...", type="jpg")
         if uploaded_image:
             image = Image.open(uploaded_image)
-            st.image(image, caption='Uploaded Image.', use_column_width=True)
+            st.image(image, caption='Uploaded Image.', use_container_width=True)
 
             image_cv = np.array(image)
             objects = detect_objects(net, image_cv)
@@ -173,7 +193,7 @@ def main():
                 car_color = car_color_detect(Image.fromarray(car_image))
                 st.write(f"Car color: {car_color}")
             else:
-                st.image(Image.fromarray(image_cv), caption='Image with Annotations.', use_column_width=True)
+                st.image(Image.fromarray(image_cv), caption='Image with Annotations.', use_container_width=True)
 
             st.write(f"Number of cars detected: {car_count}")
             st.write(f"Number of males detected: {male_count}")
@@ -243,7 +263,7 @@ def main():
                 cv2.putText(frame_rgb, f"Number of females: {female_count}", (10, height - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                 cv2.putText(frame_rgb, f"Number of other vehicles: {other_vehicle_count}", (10, height - 140), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-                stframe.image(frame_rgb, channels="RGB", use_column_width=True)
+                stframe.image(frame_rgb, channels="RGB", use_container_width=True)
 
             cap.release()
 
